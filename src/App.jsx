@@ -50,11 +50,6 @@ const css = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Sora',sans-serif;background:#FDF6EE;color:#1A1410}
-input,
-textarea,
-select {
-  font-size: 16px;
-}
 .app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
 /* header */
 .hdr{background:#E8521A;padding:18px 20px 14px;position:sticky;top:0;z-index:200}
@@ -72,7 +67,7 @@ select {
 .wrap{position:relative;margin-bottom:8px}
 .ig{background:#fff;border:1.5px solid #E8D5C4;border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:9px;transition:border-color .2s}
 .ig:focus-within{border-color:#E8521A}
-.ig input{flex:1;border:none;outline:none;font-family:'Sora',sans-serif;font-size:14px;color:#1A1410;background:transparent;min-width:0}
+.ig input{flex:1;border:none;outline:none;font-family:'Sora',sans-serif;font-size:16px;color:#1A1410;background:transparent;min-width:0}
 .ig input::placeholder{color:#C4B09A}
 .ico{font-size:15px;min-width:18px;text-align:center;flex-shrink:0}
 .ddrop{position:absolute;top:calc(100% + 3px);left:0;right:0;background:#fff;border:1.5px solid #E8D5C4;border-radius:12px;z-index:400;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.1)}
@@ -706,14 +701,16 @@ function LiveStatusScreen({ trainNo, trainName, onBack }) {
           right: 24,
           zIndex: 999,
           display: "flex",
+          justifyContent: "center",
           alignItems: "center",
           gap: 6,
           padding: "12px",
+          height: 50,
+          width: 50,
           borderRadius: 50,
           border: "none",
           background: loading ? "#D4B89A" : "#E8521A",
           color: "#fff",
-          fontSize: 13,
           fontWeight: 600,
           cursor: loading ? "not-allowed" : "pointer",
           fontFamily: "'Sora',sans-serif",
@@ -724,8 +721,7 @@ function LiveStatusScreen({ trainNo, trainName, onBack }) {
           style={{
             display: "inline-block",
             animation: loading ? "spin .7s linear infinite" : "none",
-            fontSize: 16,
-            lineHeight: 1,
+            fontSize: 20,
           }}
         >
           ⟳
@@ -874,7 +870,10 @@ function LiveStatusScreen({ trainNo, trainName, onBack }) {
                           className="st-name"
                           style={{ color: "#E8521A", fontWeight: 600 }}
                         >
-                          {`${d.bubble_message.message_type} ${d.bubble_message.station_name} (${d.current_location_info[0].message})`}
+                          {d.current_location_info.find((l) => l.type === 3)
+                            ?.message
+                            ? `${d.current_location_info.find((l) => l.type === 3).message} (${d.current_location_info[0].message})`
+                            : `${d.bubble_message.message_type} ${d.bubble_message.station_name} (${d.current_location_info[0].message})`}
                         </span>
                       </div>
                     </div>
