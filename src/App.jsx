@@ -1652,6 +1652,7 @@ export default function App() {
   }
   function goBack() {
     setStack((s) => s.slice(0, -1));
+    window.scrollTo(0, 0);
   }
 
   const top = stack[stack.length - 1];
@@ -1715,7 +1716,10 @@ export default function App() {
             <div
               key={t.id}
               className={`tab${tab === t.id ? " on" : ""}`}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                setTab(t.id);
+                window.scrollTo(0, 0);
+              }}
             >
               <div style={{ fontSize: 16, marginBottom: 2 }}>{t.icon}</div>
               {t.label}
