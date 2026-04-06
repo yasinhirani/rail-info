@@ -3,30 +3,58 @@ import { useState, useEffect, useRef } from "react";
 
 const API = import.meta.env.VITE_API_BASE_URL;
 
-// ── tiny helpers ─────────────────────────────────────────────────────────────
 function dig(obj, ...keys) {
   if (obj == null) return undefined;
   for (const k of keys) if (obj[k] != null) return obj[k];
   return undefined;
 }
+
 function arr(x) {
   return Array.isArray(x) ? x : [];
 }
+
 async function get(url) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
-// function today() {
-//   const d = new Date("04-02-2026");
-//   return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-// }
+
+function readLS(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLS(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* empty */
+  }
+}
+
+function pushHistory(key, item, max = 6) {
+  const prev = readLS(key, []);
+  const id = JSON.stringify(item);
+  const filtered = prev.filter((x) => JSON.stringify(x) !== id);
+  const next = [item, ...filtered].slice(0, max);
+  writeLS(key, next);
+  return next;
+}
 
 // ── styles ───────────────────────────────────────────────────────────────────
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Sora',sans-serif;background:#FDF6EE;color:#1A1410}
+input,
+textarea,
+select {
+  font-size: 16px;
+}
 .app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
 /* header */
 .hdr{background:#E8521A;padding:18px 20px 14px;position:sticky;top:0;z-index:200}
@@ -1022,6 +1050,7 @@ function TabTrains({ navigate, state, onState }) {
   const { from, to, trains, err } = state;
 
   const [loading, setLoading] = useState(false);
+  const [recent, setRecent] = useState(() => readLS("recent_trains", []));
 
   async function search() {
     if (!from?.code || !to?.code) {
@@ -1042,6 +1071,20 @@ function TabTrains({ navigate, state, onState }) {
       onState({ ...state, err: e.message, trains: null });
     }
     setLoading(false);
+  }
+
+  function handleTrainClick(t, num, name) {
+    const item = {
+      trainNo: num,
+      trainName: name,
+      fromCode: from.code,
+      fromName: from.name,
+      toCode: to.code,
+      toName: to.name,
+    };
+    const next = pushHistory("recent_trains", item, 6);
+    setRecent(next);
+    navigate("live", { trainNo: num, trainName: name });
   }
 
   return (
@@ -1087,9 +1130,7 @@ function TabTrains({ navigate, state, onState }) {
                 <div
                   key={i}
                   className="card"
-                  onClick={() =>
-                    navigate("live", { trainNo: num, trainName: name })
-                  }
+                  onClick={() => handleTrainClick(t, num, name)}
                 >
                   <div
                     style={{
@@ -1119,6 +1160,46 @@ function TabTrains({ navigate, state, onState }) {
           )}
         </>
       )}
+
+      {recent.length > 0 && trains === null && !loading && (
+        <>
+          <div className="div" />
+          <p className="sec">Recently viewed</p>
+          {recent.map((r, i) => (
+            <div
+              key={i}
+              className="card"
+              onClick={() =>
+                navigate("live", { trainNo: r.trainNo, trainName: r.trainName })
+              }
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                }}
+              >
+                <span className="tnum">{r.trainNo}</span>
+                <span className="bdg bdg-gr" style={{ fontSize: 10 }}>
+                  Recent
+                </span>
+              </div>
+              <div className="tname">{r.trainName}</div>
+              <div className="route-row">
+                <span>{r.fromCode}</span>
+                <div className="rdot" />
+                <div className="rline" />
+                <div className="rdot" />
+                <span>{r.toCode}</span>
+              </div>
+              <div style={{ fontSize: 11, color: "#8B7355", marginTop: 4 }}>
+                {r.fromName} → {r.toName}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -1128,20 +1209,28 @@ function TabStation({ navigate, state, onState }) {
   const { station, trains, err } = state;
 
   const [loading, setLoading] = useState(false);
+  const [recent, setRecent] = useState(() => readLS("recent_stations", []));
 
-  async function search() {
-    if (!station?.code) {
+  async function search(stn) {
+    const target = stn || station;
+    if (!target?.code) {
       onState({ ...state, err: "Select a station from the dropdown." });
       return;
     }
-    onState({ ...state, err: "", trains: null });
+    onState({ ...state, err: "", trains: null, station: target });
     setLoading(true);
     try {
-      const raw = await get(`${API}/train/liveStationAt/${station.code}`);
+      const raw = await get(`${API}/train/liveStationAt/${target.code}`);
       const list = Array.isArray(raw)
         ? raw
         : arr(raw.data ?? raw.trains ?? raw.trainList ?? []);
-      onState({ ...state, err: "", trains: list });
+      onState({ station: target, err: "", trains: list });
+      const next = pushHistory(
+        "recent_stations",
+        { name: target.name, code: target.code },
+        6,
+      );
+      setRecent(next);
     } catch (e) {
       onState({ ...state, err: e.message, trains: null });
     }
@@ -1162,7 +1251,7 @@ function TabStation({ navigate, state, onState }) {
       {err && <div className="err">{err}</div>}
       <button
         className="btn"
-        onClick={search}
+        onClick={() => search()}
         disabled={loading || !station?.code}
       >
         {loading ? "Fetching…" : "Get Live Board"}
@@ -1173,7 +1262,7 @@ function TabStation({ navigate, state, onState }) {
           <div className="div" />
           <p className="sec">
             {trains.length} train{trains.length !== 1 ? "s" : ""} at{" "}
-            {station.code}
+            {station.name}
           </p>
           {trains.length === 0 ? (
             <Empty
@@ -1240,6 +1329,59 @@ function TabStation({ navigate, state, onState }) {
               );
             })
           )}
+        </>
+      )}
+
+      {recent.length > 0 && trains === null && !loading && (
+        <>
+          <div className="div" />
+          <p className="sec">Recent stations</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+            {recent.map((r, i) => (
+              <div
+                key={i}
+                onClick={() => {
+                  onState({ ...state, err: "", station: r });
+                  search(r);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 13px",
+                  background: "#fff",
+                  border: "1.5px solid #E8D5C4",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  transition: "border-color .15s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.borderColor = "#E8521A")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.borderColor = "#E8D5C4")
+                }
+              >
+                <span style={{ fontSize: 13 }}>🏠</span>
+                <div>
+                  <div
+                    style={{ fontSize: 13, fontWeight: 500, color: "#1A1410" }}
+                  >
+                    {r.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "'Space Mono',monospace",
+                      color: "#8B7355",
+                    }}
+                  >
+                    {r.code}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>
@@ -1400,6 +1542,15 @@ function TabPNR() {
 function TabTrainNo({ navigate, state, onState }) {
   const num = state.num || "";
   const setNum = (v) => onState((prev) => ({ ...prev, num: v }));
+
+  const [recent, setRecent] = useState(() => readLS("recent_train_nos", []));
+
+  function handleSearch(trainNo) {
+    const next = pushHistory("recent_train_nos", { trainNo }, 6);
+    setRecent(next);
+    navigate("trainInfo", { trainNo });
+  }
+
   return (
     <div>
       <p className="sec">Search by Train Number</p>
@@ -1421,10 +1572,54 @@ function TabTrainNo({ navigate, state, onState }) {
       <button
         className="btn"
         disabled={num.length < 4}
-        onClick={() => navigate("trainInfo", { trainNo: num })}
+        onClick={() => handleSearch(num)}
       >
         Get Train Info
       </button>
+
+      {recent.length > 0 && (
+        <>
+          <div className="div" />
+          <p className="sec">Recent searches</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+            {recent.map((r, i) => (
+              <div
+                key={i}
+                onClick={() => handleSearch(r.trainNo)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  background: "#fff",
+                  border: "1.5px solid #E8D5C4",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  transition: "border-color .15s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.borderColor = "#E8521A")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.borderColor = "#E8D5C4")
+                }
+              >
+                <span style={{ fontSize: 13 }}>🚂</span>
+                <span
+                  style={{
+                    fontFamily: "'Space Mono',monospace",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#1A1410",
+                  }}
+                >
+                  {r.trainNo}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
