@@ -844,40 +844,94 @@ function LiveStatusScreen({ trainNo, trainName, onBack }) {
             const day = s.a_day + 1;
             const isCur = i === curIdx;
             const isDone = s.distance_from_source < d.distance_from_source;
-            const isLast = i === stations.length - 1;
+            const isLast = i === stations.length - 1 && nextStoppage;
             return (
               <>
                 {nextStoppage === s.station_name && (
-                  <div
-                    key={i + Math.random()}
-                    className="tl-row"
-                    ref={isCur ? curRef : null}
-                    style={{ marginBlock: "12px" }}
-                  >
-                    <div className="tl-col">
-                      <div className={`tl-dot cur`} />
-                    </div>
-                    <div className="st-info">
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <span
-                          className="st-name"
-                          style={{ color: "#E8521A", fontWeight: 600 }}
+                  <>
+                    {d.current_station_code && (
+                      <div key={d.current_station_code || i} className="tl-row">
+                        <div className="tl-col">
+                          <div className={`tl-dot cur`} />
+                          {!isLast && <div className={`tl-line cur`} />}
+                        </div>
+                        <div className="st-info">
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <span
+                              className="st-name"
+                              style={{
+                                color: "#E8521A",
+                                fontWeight: 600,
+                                textTransform: "capitalize",
+                              }}
+                            >
+                              {d.current_station_name || d.current_station_code}
+                            </span>
+                            <span
+                              className="bdg bdg-o"
+                              style={{ fontSize: 10, padding: "1px 6px" }}
+                            >
+                              ● Here
+                            </span>
+                          </div>
+                          <div className="st-code">
+                            {d.current_station_code}
+                            {d.distance_from_source != null
+                              ? ` · ${d.distance_from_source} km`
+                              : ""}
+                            {d.delay > 0 && (
+                              <span
+                                className="bdg bdg-o"
+                                style={{
+                                  fontSize: 10,
+                                  padding: "1px 6px",
+                                  marginLeft: "5px",
+                                }}
+                              >
+                                Delay {sDelay}m
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div
+                      key={i + Math.random()}
+                      className="tl-row"
+                      style={{ marginBlock: "12px" }}
+                    >
+                      <div className="tl-col">
+                        <div className={`tl-dot cur`} />
+                      </div>
+                      <div className="st-info">
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            flexWrap: "wrap",
+                          }}
                         >
-                          {d.current_location_info.find((l) => l.type === 3)
-                            ?.message
-                            ? `${d.current_location_info.find((l) => l.type === 3).message} (${d.current_location_info[0].message})`
-                            : `${d.bubble_message.message_type} ${d.bubble_message.station_name} (${d.current_location_info[0].message})`}
-                        </span>
+                          <span
+                            className="st-name"
+                            style={{ color: "#E8521A", fontWeight: 600 }}
+                          >
+                            {d.current_location_info.find((l) => l.type === 3)
+                              ?.message
+                              ? `${d.current_location_info.find((l) => l.type === 3).message} (${d.current_location_info[0].message})`
+                              : `${d.bubble_message.message_type} ${d.bubble_message.station_name} (${d.current_location_info[0].message})`}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </>
                 )}
                 <div
                   key={s.station_code || i}
@@ -1028,6 +1082,67 @@ function LiveStatusScreen({ trainNo, trainName, onBack }) {
                       </div>
                     );
                   })}
+                {!nextStoppage && i === stations.length - 1 && (
+                  <div
+                    key={d.current_station_code || i}
+                    className="tl-row"
+                    ref={!nextStoppage ? curRef : null}
+                    onClick={() =>
+                      setStnOpen(
+                        s.station_code === stnOpen ? "" : s.station_code,
+                      )
+                    }
+                  >
+                    <div className="tl-col">
+                      <div className={`tl-dot done`} />
+                    </div>
+                    <div className="st-info">
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span
+                          className="st-name"
+                          style={{ textTransform: "capitalize" }}
+                        >
+                          {d.current_station_name || d.current_station_code}
+                        </span>
+                        <span
+                          className="bdg bdg-g"
+                          style={{ fontSize: 10, padding: "1px 6px" }}
+                        >
+                          Reached
+                        </span>
+                      </div>
+                      <div className="st-code">
+                        {sCode}
+                        {d.distance_from_source != null
+                          ? ` · ${d.distance_from_source} km`
+                          : ""}
+                      </div>
+                      <div className="st-times">
+                        {d.eta && d.eta !== "--" && d.eta !== "–" && (
+                          <span className="st-t">{d.eta}</span>
+                        )}
+                        {d.etd && d.etd !== "--" && d.etd !== "–" && (
+                          <span className="st-t">{d.etd}</span>
+                        )}
+                        {sDelay > 0 && (
+                          <span
+                            className="bdg bdg-o"
+                            style={{ fontSize: 10, padding: "1px 6px" }}
+                          >
+                            Delay {d.delay}m
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             );
           })}
